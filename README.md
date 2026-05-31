@@ -1,6 +1,7 @@
 # 🐸 Advanced Word Replacer (AWR Tools)
 
 [![Greasy Fork](https://img.shields.io/badge/Install%20with-Greasy%20Fork-green.svg?style=for-the-badge)](https://greasyfork.org/en/scripts/580034-advanced-word-replacer)
+[![Install from GitHub](https://img.shields.io/badge/Install%20Directly-GitHub-black.svg?style=for-the-badge)](https://github.com/Frist17/advanced-word-replacer/raw/main/advanced-word-replacer.user.js)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![GitHub Profile](https://img.shields.io/badge/Developer-@Frist17-orange.svg?style=for-the-badge)](https://github.com/Frist17)
 

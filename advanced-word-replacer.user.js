@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Advanced Word Replacer
 // @namespace    http://tampermonkey.net
-// @version      18.9
+// @version      19.0
 // @description  Advanced word replacer with floating UI, cloud sync, whitelist/blacklist site management, multi-language support, and recycle bin
 // @author       You
 // @match        *://*/*
@@ -1212,7 +1212,7 @@
             '.replacer-close:hover {',
             '  color: #ffffff !important;',
             '}',
-            '/* ── SOLUSI CSS: Visualisasi Status Header Super Rapi ── */',
+            '/* Visualisasi Status Header Super Rapi */',
             '.replacer-host-status {',
             '  background: #0f172a !important;',
             '  border: 1px solid #334155 !important;',
@@ -1458,10 +1458,10 @@
             '.active-lang-btn:hover { background: #334155 !important; border-color: #3b82f6 !important; }',
             '.lang-dropdown-menu { display: none !important; position: absolute !important; right: 0 !important; top: 100% !important; margin-top: 4px !important; background: #1e293b !important; border: 1px solid #334155 !important; border-radius: 8px !important; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important; z-index: 100000001 !important; min-width: 120px !important; overflow: hidden !important; }',
             '.lang-dropdown-menu.show { display: block !important; }',
-            '.lang-dropdown-item { width: 100% !important; background: none !important; border: none !important; color: #cbd5e1 !important; padding: 8px 12px !important; font-size: 11px !important; text-align: left !important; cursor: pointer !important; display: flex !important; align-items: center !important; gap: 8px !important; transition: all 0.15s ease !important; }',
+            '.lang-dropdown-item { width: 100% !important; background: none !important; border: none !important; color: #cbd5e1 !important; padding: 8px 12px !important; font-size: 11px !important; text-align: left !important; cursor: pointer !important; display: flex !important; align-items: center !important; gap: 8px !important; transition: all 0.15s ease !important; display: block !important; }',
             '.lang-dropdown-item:hover { background: #334155 !important; color: #ffffff !important; }',
             '.lang-dropdown-item.active { background: #2563eb !important; color: #ffffff !important; }',
-            '/* ── SOLUSI CSS: Gear/⚙️ Dropdown di Sisi Kiri (Aman Dari Clipping) ── */',
+            '/* Gear/⚙️ Dropdown di Sisi Kiri (Aman Dari Clipping) */',
             '.group-menu-container { position: relative !important; display: inline-flex !important; align-items: center !important; z-index: 100 !important; }',
             '.group-menu-btn { background: none !important; border: none !important; color: #94a3b8 !important; font-size: 14px !important; cursor: pointer !important; padding: 4px 6px !important; display: flex !important; align-items: center !important; justify-content: center !important; transition: color 0.15s ease !important; }',
             '.group-menu-btn:hover { color: #ffffff !important; }',
@@ -1958,8 +1958,9 @@
                         <input type="checkbox" class="select-all-checkbox" style="cursor: pointer !important; margin: 0 !important;" />
                         <span>${t('select_all')} (<span class="total-count">0</span>)</span>
                     </div>
-                    <div class="word-list"></div>
+                    <!-- ── SOLUSI: Tombol Show/Hide dipindah ke atas daftar kata ── -->
                     <div class="toggle-other-placeholder"></div>
+                    <div class="word-list"></div>
                     <div style="display: flex !important; justify-content: flex-end !important; margin-top: 10px !important;">
                         <button class="form-btn close-btn-terms btn-pill" style="background: #374151 !important; color: #d1d5db !important; padding: 6px 16px !important; font-size: 12px !important;">${t('close_btn')}</button>
                     </div>
@@ -2065,7 +2066,6 @@
                         const localTitle = currentNovel.title || "Current Novel";
                         const isActiveLocal = activeNovelId ? (currentNovel.id === activeNovelId) : true;
 
-                        // ── PERBAIKAN: Posisi Gear Menu dipindah ke awal sisi paling kiri ──
                         localHeader.innerHTML = `
                             <div style="display: flex !important; align-items: center !important; gap: 6px !important; width: 100% !important; position: relative !important;">
                                 <div class="group-menu-container">
@@ -2111,7 +2111,6 @@
                             const groupHeader = document.createElement('div');
                             groupHeader.setAttribute('style', 'display: flex !important; justify-content: space-between !important; align-items: center !important; padding: 10px 10px 6px 10px !important; margin-top: 10px !important;');
 
-                            // ── PERBAIKAN: Posisi Gear Menu dipindah ke awal sisi paling kiri ──
                             groupHeader.innerHTML = `
                                 <div style="display: flex !important; align-items: center !important; gap: 6px !important; width: 100% !important; position: relative !important;">
                                     <div class="group-menu-container">
@@ -2323,8 +2322,8 @@
 
                 selectAllCheckbox.onchange = (e) => {
                     const searchVal = searchInput.value.toLowerCase().trim();
-                    const keysFiltered = Object.keys(seluruhKamus).filter(k => {
-                        const item = seluruhKamus[k];
+                    const keysFiltered = Object.keys(seluruhDeleted).filter(k => {
+                        const item = seluruhDeleted[k];
                         const toVal = (item && typeof item === 'object' && typeof item.to === 'string') ? item.to : (typeof item === 'string' ? item : '');
                         return k.toLowerCase().includes(searchVal) || toVal.toLowerCase().includes(searchVal);
                     });
@@ -2654,8 +2653,9 @@
                         <input type="checkbox" class="select-all-checkbox" style="cursor: pointer !important; margin: 0 !important;" />
                         <span>${t('select_all')} (<span class="total-count">0</span>)</span>
                     </div>
-                    <div class="word-list"></div>
+                    <!-- ── SOLUSI: Tombol Show/Hide dipindah ke atas daftar kata di Recycle Bin ── -->
                     <div class="toggle-other-placeholder"></div>
+                    <div class="word-list"></div>
                     <div style="display: flex !important; justify-content: flex-end !important; margin-top: 10px !important;">
                         <button class="form-btn close-btn-recycle btn-pill" style="background: #374151 !important; color: #d1d5db !important; padding: 6px 16px !important; font-size: 12px !important;">${t('close_btn')}</button>
                     </div>

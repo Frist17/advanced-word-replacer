@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Advanced Word Replacer
 // @namespace    http://tampermonkey.net
-// @version      19.0
+// @version      19.7
 // @description  Advanced word replacer with floating UI, cloud sync, whitelist/blacklist site management, multi-language support, and recycle bin
 // @author       You
 // @match        *://*/*
@@ -68,7 +68,7 @@
             return escapedChars.join('[\\u200b\\u200c\\u200d\\ufeff]?');
         });
         
-        return patternParts.join('[\\s\\-_—–\\u200b\\u200c\\u200d\\ufeff\\u00a0]*');
+        return patternParts.join('([\\s\\-_—–\\u200b\\u200c\\u200d\\ufeff\\u00a0]*)');
     }
 
     function buildBoundaryRegex(term, pattern, flags = 'giu') {
@@ -81,6 +81,48 @@
         const suffix = endsWithWordChar ? '(?![\\p{L}\\p{N}])' : '';
         
         return new RegExp(prefix + pattern + suffix, flags);
+    }
+
+    function reconstructReplacement(replacement, capturedSeparators) {
+        const repWords = replacement.split(/\s+/);
+        const m = repWords.length;
+        const numSeps = capturedSeparators.length;
+
+        if (m <= 1) {
+            return replacement;
+        }
+
+        const sepsToUse = [];
+        if (numSeps === 0) {
+            for (let i = 0; i < m - 1; i++) sepsToUse.push(" ");
+        } else if (m - 1 === numSeps) {
+            for (let i = 0; i < numSeps; i++) sepsToUse.push(capturedSeparators[i] || " ");
+        } else if (m - 1 < numSeps) {
+            for (let i = 0; i < m - 1; i++) {
+                if (i === m - 2) {
+                    sepsToUse.push(capturedSeparators.slice(i).join(""));
+                } else {
+                    sepsToUse.push(capturedSeparators[i] || " ");
+                }
+            }
+        } else {
+            for (let i = 0; i < m - 1; i++) {
+                if (i < numSeps) {
+                    sepsToUse.push(capturedSeparators[i] || " ");
+                } else {
+                    sepsToUse.push(" ");
+                }
+            }
+        }
+
+        let result = "";
+        for (let i = 0; i < m; i++) {
+            result += repWords[i];
+            if (i < m - 1) {
+                result += sepsToUse[i];
+            }
+        }
+        return result;
     }
 
     function unwrapFontTags() {
@@ -410,26 +452,77 @@
             deleted_words_banner: "Deleted {0} words", undo_btn: "Undo", toast_restored: "Successfully restored {0} words!", sure_btn: "Sure?", yakin_btn: "Sure?", yakin_reset: "⚠️ SURE RESET? CLICK AGAIN",
             replaced_from: "From {0}", replaced_to: "To {0}", word_salah_placeholder: "Example: man", word_benar_placeholder: "Example: man(woman)",
 
+            // Recycle Word translations
             undo_tooltip: "Undo / Restore", confirm_undo_bulk: "Are you sure you want to restore {0} selected rules?", confirm_delete_perm_bulk: "Are you sure you want to permanently delete {0} selected rules?",
             toast_undone: "Word '{0}' successfully restored!", toast_deleted_perm: "Word '{0}' permanently deleted!", toast_bulk_undone: "Successfully restored {0} words!", toast_bulk_deleted_perm: "Successfully permanently deleted {0} words!",
             bulk_undo: "Restore ({0})", bulk_delete_perm: "Delete Perm ({0})",
 
+            // Cloud Manager translations
             cloud_storage_status: "Cloud Storage Status", baskets_used: "Baskets (Configs) Used", used_of_max: "{0} of {1} Baskets", load_config: "Stored Configurations",
             loading_cloud_data: "Connecting to GitHub Gist...", no_backups_found: "No backups found on cloud.", current_active: "Active Gist State", btn_load: "Load",
             toast_config_loaded: "Configuration restored successfully!", toast_config_deleted: "Gist disconnected!", toast_github_connected: "Connected to GitHub Gist successfully!",
-            toast_account_switched: "Logged out from current GitHub account.", toast_revision_restored: "Version '{0}' restored successfully!"
+            toast_account_switched: "Logged out from current GitHub account.", toast_revision_restored: "Version '{0}' restored successfully!",
+
+            // New Localization Keys
+            btn_confirm: "Confirm", btn_cancel: "Cancel",
+            merge_group: "Merge Group",
+            merge_group_desc: "Select a target group to merge all terms of \"{0}\" into:",
+            merge_group_success: "Successfully merged \"{0}\" into \"{1}\" ({2} terms moved)!",
+            merge_group_err_same: "Cannot merge a group into itself!",
+            rename_group_prompt: "Enter new group / novel title:",
+            rename_group_success: "Successfully renamed group to \"{0}\" ({1} terms updated)!",
+            logout_confirm: "Are you sure you want to disconnect your GitHub account? Local data will not be deleted.",
+            delete_group_confirm: "Are you sure you want to move all terms in \"{0}\" to the Recycle Bin?",
+            delete_group_success: "Moved group \"{0}\" ({1} terms deleted) to Recycle Word!",
+            select_custom_group_placeholder: "Enter new custom group name...",
+            alert_enter_custom_name: "Please enter a custom group name!",
+            make_group_active: "Make This Group Active (Disable Other Groups)",
+            suggested_wrong: "Suggested Misspelled Words:",
+            cloud_connected_as: "Connected as:",
+            cloud_manual_backup_starting: "Creating backup...",
+            cloud_manual_backup_success: "Backup completed successfully!",
+            cloud_manual_backup_fail_history: "Failed to load recent history.",
+            gist_id_copied: "Gist ID copied to clipboard!",
+            token_copied: "GitHub Token copied to clipboard!",
+            backup_now: "Backup Now",
+            logout: "Logout",
+            revision_history: "Revision History",
+            gist_err_invalid: "Gist ID is invalid or inaccessible!\n\nPossible Causes:\n1. Pasted token in Gist ID field.\n2. Incorrect Gist ID/URL.\n3. Token lacks 'gist' scope.\n4. Gist was deleted.",
+            conn_err_verify: "Connection error verifying account.",
+            gist_load_fail: "Failed to load GitHub cloud data. Please check connection or token.",
+            case_sensitive: "Case sensitive",
+            toast_group_disabled: "Group novel deactivated (Returning to native site mode)",
+            toast_group_activated: "Group novel \"{0}\" successfully activated exclusively",
+            delete_revision_confirm: "Are you sure you want to delete the backup from \"{0}\" permanently?",
+            reset_confirm_desc: "This action will restore default settings, delete custom dictionaries, recycle history, and disconnect GitHub Gist integration.",
+            target_category: "Target Category",
+            custom_novel_input_placeholder: "Enter new novel name...",
+            highlight_enabled: "Highlight enabled",
+            highlight_disabled: "Highlight disabled",
+            gist_scan_toast: "Scanning your old Gist dictionaries...",
+            gist_scan_found: "Your old Gist was found and auto-filled!",
+            gist_scan_not_found: "No old Gist detected. Leave empty to create new.",
+            warn_no_custom_name: "Please enter a custom novel/group name!",
+            auth_token_classic_link: "👉 Get GitHub Access Token Here (Classic Token)",
+            auth_token_manage_link: "⚙️ Manage Existing Tokens",
+            auth_github_token_label: "GitHub Token:",
+            auth_gist_id_label: "Gist ID (Optional):",
+            auth_connect_btn: "Connect GitHub",
+            auth_connecting_btn: "⌛ Connecting...",
+            auth_conn_fail_reason: "Connection failed during account verification.",
+            auth_cloud_err_msg: "⚠️ Failed to load GitHub cloud data.<br>Please check your internet connection or token."
         },
         id: {
             flag: "🇮🇩", title: "Advanced Word Replacer", current_site: "Situs saat ini:", active: "AKTIF", off: "OFF", disable: "Matikan", enable: "Aktifkan",
             tab_editor: "Editor", tab_terms: "Your Terms", tab_filter: "Filter", tab_recycle: "Recycle Word", tab_setting: "Kelola", tab_cloud: "Cloud Manager", tab_config: "Config",
             search_placeholder: "Cari kata lama/baru...", select_all: "PILIH SEMUA", bulk_delete: "Hapus ({0})", empty_state: "Kamus kosong / tidak ada hasil.",
-            show_other_terms: "Show Other Novel Terms ({0})", hide_other_terms: "Hide Other Novel Terms ({0})", other_terms_title: "TERMS {0} ({1})",
-            original_text: "Original Text ({0})", replacement_text: "Replacement Text ({0})", global_replacer: "All Novels (Global Replacer)", local_replacer: "This Novel Only",
-            this_novel_desc: "This term will only apply to this novel.", delete_btn: "Delete", close_btn: "Close", save_btn: "Save", update_btn: "Update",
-            suggested_title: "Rekomendasi Kata Salah:", site_manager: "SITUS MANAJER (FILTER)", mode_label: "Mode:", only_whitelist: "Only Whitelist", block_blacklist: "Block Blacklist",
-            desc_whitelist: "Skrip HANYA akan berjalan pada situs yang ada di daftar Whitelist di bawah ini.", desc_blacklist: "Skrip akan berjalan di SEMUA situs, KECUALI situs yang terdaftar di daftar Blokir (Blacklist) di bawah ini.",
+            show_other_terms: "Tampilkan Istilah Novel Lain ({0})", hide_other_terms: "Sembunyikan Istilah Novel Lain ({0})", other_terms_title: "TERMS {0} ({1})",
+            original_text: "Teks Asli ({0})", replacement_text: "Teks Pengganti ({0})", global_replacer: "Semua Novel (Global Replacer)", local_replacer: "Hanya Novel Ini",
+            this_novel_desc: "Istilah ini hanya akan berlaku pada novel ini.", delete_btn: "Hapus", close_btn: "Tutup", save_btn: "Simpan", update_btn: "Perbarui",
+            suggested_title: "Rekomendasi Kata Salah:", site_manager: "SITUS MANAJER (FILTER)", mode_label: "Mode:", only_whitelist: "Hanya Whitelist", block_blacklist: "Blokir Blacklist",
+            desc_whitelist: "Skrip HANYA akan berjalan pada situs Whitelist di bawah ini.", desc_blacklist: "Skrip akan berjalan pada SEMUA situs, KECUALI yang terdaftar di Blacklist di bawah ini.",
             new_whitelist_placeholder: "Domain whitelist baru...", new_blacklist_placeholder: "Domain blokir baru...", script_settings: "PENGATURAN SKRIP REPLACER (CONFIG)",
-            blue_highlight: "Highlight Biru", blue_highlight_desc: "Berikan warna biru tebal pada kata yang berhasil diganti", restore_defaults: "Kembalikan Default", restore_desc: "Hapus data kustom dan reset ke bawaan", reset_data: "Reset Data",
+            blue_highlight: "Highlight Biru", blue_highlight_desc: "Berikan warna biru tebal pada kata yang diganti", restore_defaults: "Kembalikan Default", restore_desc: "Hapus data kustom dan reset ke bawaan", reset_data: "Reset Data",
             toast_removed_whitelist: "Situs dihapus dari Whitelist: {0}", toast_added_whitelist: "Situs ditambahkan ke Whitelist: {0}", toast_added_blacklist: "Situs ditambahkan ke daftar Blokir: {0}", toast_removed_blacklist: "Situs dihapus dari daftar Blokir: {0}",
             toast_deleted: "Aturan '{0}' dipindahkan ke Recycle Word", toast_updated: "Kata '{0}' diperbarui", toast_added: "Kata '{0}' ditambahkan", toast_filter_mode: "Mode filter diubah ke {0}",
             toast_whitelist_deleted: "Whitelist {0} dihapus", toast_blacklist_deleted: "Blokir {0} dihapus", toast_copied: "Kunci Sinkronisasi disalin ke clipboard!",
@@ -439,14 +532,65 @@
             deleted_words_banner: "Terhapus {0} kata", undo_btn: "Urungkan", toast_restored: "Berhasil mengembalikan {0} kata!", sure_btn: "Yakin?", yakin_btn: "Yakin?", yakin_reset: "⚠️ YAKIN RESET? KLIK LAGI",
             replaced_from: "From {0}", replaced_to: "To {0}", word_salah_placeholder: "Contoh: pria", word_benar_placeholder: "Contoh: pria(wanita)",
 
+            // Recycle Word translations
             undo_tooltip: "Urungkan / Kembalikan", confirm_undo_bulk: "Apakah Anda yakin ingin mengembalikan {0} kata terpilih?", confirm_delete_perm_bulk: "Apakah Anda yakin ingin menghapus permanen {0} kata terpilih?",
             toast_undone: "Kata '{0}' berhasil dikembalikan!", toast_deleted_perm: "Kata '{0}' berhasil dihapus permanen!", toast_bulk_undone: "Berhasil mengembalikan {0} kata!", toast_bulk_deleted_perm: "Berhasil menghapus permanen {0} kata!",
             bulk_undo: "Urungkan ({0})", bulk_delete_perm: "Hapus Permanen ({0})",
 
+            // Cloud Manager translations
             cloud_storage_status: "Status Penyimpanan Cloud", baskets_used: "Basket (Config) Terpakai", used_of_max: "{0} dari {1} Basket", load_config: "Daftar Konfigurasi Tersimpan",
             loading_cloud_data: "Menghubungkan ke GitHub Gist...", no_backups_found: "Tidak ada konfigurasi tersimpan di Gist ini.", current_active: "Status Gist Aktif", btn_load: "Muat",
             toast_config_loaded: "Konfigurasi berhasil dipulihkan!", toast_config_deleted: "Gist diputuskan!", toast_github_connected: "Berhasil terhubung ke GitHub Gist!",
-            toast_account_switched: "Berhasil keluar dari akun GitHub.", toast_revision_restored: "Versi '{0}' berhasil dipulihkan!"
+            toast_account_switched: "Berhasil keluar dari akun GitHub.", toast_revision_restored: "Versi '{0}' berhasil dipulihkan!",
+
+            // New Localization Keys [1, 2]
+            btn_confirm: "Lanjutkan", btn_cancel: "Batal",
+            merge_group: "Gabungkan Grup",
+            merge_group_desc: "Pilih grup tujuan untuk menggabungkan semua istilah dari \"{0}\":",
+            merge_group_success: "Berhasil menggabungkan \"{0}\" ke \"{1}\" ({2} istilah dipindahkan)!",
+            merge_group_err_same: "Tidak dapat menggabungkan grup ke dirinya sendiri!",
+            rename_group_prompt: "Masukkan nama novel / grup kustom baru:",
+            rename_group_success: "Berhasil mengubah nama grup menjadi \"{0}\" ({1} kata diperbarui)!",
+            logout_confirm: "Apakah Anda yakin ingin memutuskan koneksi akun GitHub saat ini? Data lokal Anda tidak akan terhapus.",
+            delete_group_confirm: "Apakah Anda yakin ingin memindahkan seluruh kata/aturan dalam grup novel \"{0}\" ke Recycle Bin?",
+            delete_group_success: "Berhasil memindahkan seluruh grup \"{0}\" ({1} kata dihapus) ke Recycle Word!",
+            select_custom_group_placeholder: "Masukkan nama novel/grup baru...",
+            alert_enter_custom_name: "Silakan masukkan nama novel/grup baru!",
+            make_group_active: "Jadikan Grup Ini Aktif (Nonaktifkan Grup Lain)",
+            suggested_wrong: "Rekomendasi Kata Salah:",
+            cloud_connected_as: "Terhubung sebagai:",
+            cloud_manual_backup_starting: "Mencadangkan kata ke GitHub...",
+            cloud_manual_backup_success: "Kamus kata berhasil dicadangkan!",
+            cloud_manual_backup_fail_history: "Gagal mengambil riwayat terbaru.",
+            gist_id_copied: "Gist ID disalin ke clipboard!",
+            token_copied: "GitHub Token disalin ke clipboard!",
+            backup_now: "Cadangkan Sekarang",
+            logout: "Logout",
+            revision_history: "Riwayat Revisi",
+            gist_err_invalid: "Gist ID tidak valid atau tidak dapat diakses!\n\nKemungkinan Penyebab:\n1. Menempelkan token di kolom Gist ID secara tidak sengaja.\n2. Gist ID/URL salah.\n3. Token tidak memiliki izin 'gist'.\n4. Gist telah dihapus.",
+            conn_err_verify: "Terjadi kesalahan koneksi saat memverifikasi akun.",
+            gist_load_fail: "Gagal memuat data cloud GitHub. Silakan periksa koneksi internet atau token Anda.",
+            case_sensitive: "Sensitif huruf",
+            toast_group_disabled: "Grup novel dinonaktifkan (Kembali ke mode alami situs)",
+            toast_group_activated: "Grup novel \"{0}\" berhasil diaktifkan secara eksklusif",
+            delete_revision_confirm: "Apakah Anda yakin ingin menghapus berkas cadangan tanggal \"{0}\" dari cloud secara permanen?",
+            reset_confirm_desc: "Tindakan ini akan mengembalikan setelan skrip ke kondisi awal serta menghapus seluruh data kamus kustom, log sampah, dan memutus integrasi cloud GitHub Anda.",
+            target_category: "Target Kategori",
+            custom_novel_input_placeholder: "Masukkan nama novel baru...",
+            highlight_enabled: "Highlight aktif",
+            highlight_disabled: "Highlight nonaktif",
+            gist_scan_toast: "Memindai kamus Gist lama Anda...",
+            gist_scan_found: "Gist lama Anda ditemukan dan diisi secara otomatis!",
+            gist_scan_not_found: "Tidak ada Gist lama terdeteksi. Silakan biarkan kosong jika ingin membuat baru.",
+            warn_no_custom_name: "Silakan masukkan nama novel/grup baru!",
+            auth_token_classic_link: "👉 Get GitHub Access Token Here (Classic Token)",
+            auth_token_manage_link: "⚙️ Manage Existing Tokens (Kelola Token Lama Anda)",
+            auth_github_token_label: "GitHub Token:",
+            auth_gist_id_label: "Gist ID (Optional):",
+            auth_connect_btn: "Connect GitHub",
+            auth_connecting_btn: "⌛ Menghubungkan...",
+            auth_conn_fail_reason: "Terjadi kesalahan koneksi saat memverifikasi akun.",
+            auth_cloud_err_msg: "⚠️ Gagal memuat data cloud GitHub.<br>Silakan periksa koneksi internet atau token Anda."
         }
     };
 
@@ -505,12 +649,21 @@
         return parts.join('.');
     }
 
+    // ── SOLUSI INTEGRASI: Sanitasi Cache Otomatis Agar Judul Lama yang Kotor Dihapus Instan ──
     function getCachedNovelTitle(novelId) {
         if (!novelId) return "";
         try {
             const cacheVal = GM_getValue("awr_novel_titles_v2", "{}");
             const cache = typeof cacheVal === "string" ? JSON.parse(cacheVal) : cacheVal;
-            return cache[novelId] || "";
+            const rawTitle = cache[novelId] || "";
+            const cleaned = cleanTitleText(rawTitle);
+            
+            // Jika memuat judul yang kotor dari database cache lokal, bersihkan saat itu juga [3]
+            if (cleaned && cleaned !== rawTitle) {
+                cache[novelId] = cleaned;
+                GM_setValue("awr_novel_titles_v2", JSON.stringify(cache));
+            }
+            return cleaned;
         } catch (e) {
             return "";
         }
@@ -538,6 +691,7 @@
         }
     }
 
+    // Pembersih Teks Judul Pintar yang Mencegah Kebocoran Bab/Chapter
     function cleanTitleText(str) {
         if (!str) return "";
 
@@ -559,6 +713,12 @@
             t = t.replace(/\s+(Indonesia|English|Spanish|German|Japanese)?\s+Translation\s*$/i, "");
             t = t.replace(/\s+RAW\s*$/i, "");
             t = t.replace(/\s+(online|free|novel|chapter|b\.)\s*$/i, "");
+            
+            // ── SOLUSI FINISHING: Ekspresi reguler universal tanpa lookbehind untuk keandalan eksekusi ──
+            t = t.replace(/\s*[:-|–|—]*\s*\b(?:chapter|ch|chap|volume|vol|bab|b\.|c|episode|ep)\.?\s*\d+\b.*/i, "");
+            t = t.replace(/\s+[:-|–|—]\s*\d+\s*$/i, "");
+            t = t.replace(/^\s*(?:chapter|ch|chap|volume|vol|bab|b\.|c|episode|ep)\.?\s*\d+\s*[:-|–|—]*\s*/i, "");
+            
             return t.trim();
         }
         return "";
@@ -780,9 +940,10 @@
 
             if (item && typeof item === 'object') {
                 if (item.global) {
+                    // Hanya izinkan global jika bukan dalam mode "bukan novel" atau domain terdaftar
                     aktif[salah] = toVal;
                 } else if (item.novelId) {
-                    if (item.novelId === targetActiveId) {
+                    if (item.novelId === targetActiveId && activeNovelId !== "GLOBAL_ONLY") {
                         aktif[salah] = toVal;
                     }
                 } else {
@@ -970,12 +1131,13 @@
         textNodes.forEach(node => {
             if (!node.parentNode) return;
 
-            const teksAsli = node.nodeValue.normalize('NFC');
-            lastProcessedValueMap.set(node, teksAsli);
-
+            // ── PERBAIKAN SEBELUMNYA: Memulihkan teks asli SEBELUM merekam "teksAsli" untuk dicocokkan ──
+            let teksAsli = node.nodeValue.normalize('NFC');
             if (originalTextMap.has(node)) {
-                node.nodeValue = originalTextMap.get(node).normalize('NFC');
+                teksAsli = originalTextMap.get(node).normalize('NFC');
+                node.nodeValue = teksAsli;
             }
+            lastProcessedValueMap.set(node, teksAsli);
 
             let adaPerubahan = false;
 
@@ -1005,7 +1167,13 @@
                 for (const salah in kamus) {
                     const pattern = buildRegexPattern(salah);
                     const regexBoundary = buildBoundaryRegex(salah, pattern, 'giu');
-                    teksBaru = teksBaru.replace(regexBoundary, kamus[salah]);
+                    
+                    // Mengganti kata dengan memelihara spasi/newline asli
+                    teksBaru = teksBaru.replace(regexBoundary, (matchStr, ...groups) => {
+                        const numSeps = salah.split(/[\s\-_—–]+/).length - 1;
+                        const capturedSeparators = groups.slice(0, numSeps);
+                        return reconstructReplacement(kamus[salah], capturedSeparators);
+                    });
                 }
                 node.nodeValue = teksBaru;
                 lastProcessedValueMap.set(node, teksBaru);
@@ -1041,8 +1209,12 @@
                     for (const salah in kamus) {
                         const pattern = buildRegexPattern(salah);
                         const rx = new RegExp('^' + pattern + '$', 'iu');
-                        if (rx.test(match[0])) {
-                            penggantinya = kamus[salah];
+                        const subMatch = match[0].match(rx);
+                        if (subMatch) {
+                            // Mengganti kata dengan memelihara spasi/newline asli pada sorotan highlight
+                            const numSeps = salah.split(/[\s\-_—–]+/).length - 1;
+                            const capturedSeparators = subMatch.slice(1, 1 + numSeps);
+                            penggantinya = reconstructReplacement(kamus[salah], capturedSeparators);
                             break;
                         }
                     }
@@ -1458,7 +1630,7 @@
             '.active-lang-btn:hover { background: #334155 !important; border-color: #3b82f6 !important; }',
             '.lang-dropdown-menu { display: none !important; position: absolute !important; right: 0 !important; top: 100% !important; margin-top: 4px !important; background: #1e293b !important; border: 1px solid #334155 !important; border-radius: 8px !important; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important; z-index: 100000001 !important; min-width: 120px !important; overflow: hidden !important; }',
             '.lang-dropdown-menu.show { display: block !important; }',
-            '.lang-dropdown-item { width: 100% !important; background: none !important; border: none !important; color: #cbd5e1 !important; padding: 8px 12px !important; font-size: 11px !important; text-align: left !important; cursor: pointer !important; display: flex !important; align-items: center !important; gap: 8px !important; transition: all 0.15s ease !important; display: block !important; }',
+            '.lang-dropdown-item { width: 100% !important; background: none !important; border: none !important; color: #cbd5e1 !important; padding: 8px 12px !important; font-size: 11px !important; text-align: left !important; cursor: pointer !important; transition: all 0.15s ease !important; display: block !important; }',
             '.lang-dropdown-item:hover { background: #334155 !important; color: #ffffff !important; }',
             '.lang-dropdown-item.active { background: #2563eb !important; color: #ffffff !important; }',
             '/* Gear/⚙️ Dropdown di Sisi Kiri (Aman Dari Clipping) */',
@@ -1554,6 +1726,7 @@
         panel.className = 'replacer-panel hidden';
         wrapper.appendChild(panel);
 
+        // Dialog Konfirmasi / Prompt Melayang (Confirm Modal)
         function tampilkanKonfirmasi(judul, deskripsi, onConfirm, onCancel = null) {
             const existing = panel.querySelector('.replacer-confirm-overlay');
             if (existing) existing.remove();
@@ -1565,8 +1738,8 @@
                     <div class="replacer-confirm-header">${judul}</div>
                     <div class="replacer-confirm-body">${deskripsi}</div>
                     <div class="replacer-confirm-footer">
-                        <button class="form-btn confirm-cancel-btn">Batal</button>
-                        <button class="form-btn btn-pill-primary confirm-ok-btn" style="background: #ef4444 !important; border-color: #ef4444 !important;">Lanjutkan</button>
+                        <button class="form-btn confirm-cancel-btn">${t('btn_cancel')}</button>
+                        <button class="form-btn btn-pill-primary confirm-ok-btn" style="background: #ef4444 !important; border-color: #ef4444 !important;">${t('btn_confirm')}</button>
                     </div>
                 </div>
             `;
@@ -1586,6 +1759,117 @@
             panel.appendChild(overlay);
         }
 
+        // Modal Penggabungan Grup Novel Baru
+        function tampilkanMergeGroup(sourceId, sourceTitle) {
+            const existing = panel.querySelector('.replacer-confirm-overlay');
+            if (existing) existing.remove();
+
+            const seluruhKamus = getKamus();
+            const localNovelsMap = {};
+            const currentNovel = getNovelContext();
+            
+            localNovelsMap[currentNovel.id] = currentNovel.title;
+
+            for (const salah in seluruhKamus) {
+                const item = seluruhKamus[salah];
+                if (item && typeof item === 'object' && !item.global && item.novelId) {
+                    localNovelsMap[item.novelId] = item.novelTitle || getCachedNovelTitle(item.novelId) || item.novelId;
+                }
+            }
+
+            let optionsHTML = `<option value="GLOBAL_OPTION">🌐 ${t('global_replacer')}</option>`;
+            for (const id in localNovelsMap) {
+                if (id === sourceId) continue;
+                optionsHTML += `<option value="${id}">📖 ${localNovelsMap[id]}</option>`;
+            }
+
+            const overlay = document.createElement('div');
+            overlay.className = 'replacer-confirm-overlay';
+            overlay.innerHTML = `
+                <div class="replacer-confirm-box">
+                    <div class="replacer-confirm-header">${t('merge_group')}</div>
+                    <div class="replacer-confirm-body">
+                        <div style="margin-bottom: 8px;">${t('merge_group_desc', sourceTitle)}</div>
+                        <select class="form-input sel-merge-target" style="width: 100% !important; background: #1a1d24 !important; border: 1px solid #334155 !important; color: white !important;">
+                            ${optionsHTML}
+                        </select>
+                    </div>
+                    <div class="replacer-confirm-footer">
+                        <button class="form-btn merge-cancel-btn">${t('btn_cancel')}</button>
+                        <button class="form-btn btn-pill-primary merge-ok-btn">${t('save_btn')}</button>
+                    </div>
+                </div>
+            `;
+
+            overlay.querySelector('.merge-cancel-btn').onclick = (e) => {
+                e.stopPropagation();
+                overlay.remove();
+            };
+
+            overlay.querySelector('.merge-ok-btn').onclick = (e) => {
+                e.stopPropagation();
+                const targetId = overlay.querySelector('.sel-merge-target').value;
+                overlay.remove();
+                
+                const tempKamus = getKamus();
+                let count = 0;
+                const targetTitle = (targetId === "GLOBAL_OPTION") ? "Global" : (localNovelsMap[targetId] || targetId);
+                const targetUrl = (targetId === "GLOBAL_OPTION") ? "" : (Object.values(tempKamus).find(x => x.novelId === targetId)?.novelUrl || "");
+
+                for (const salah in tempKamus) {
+                    const item = tempKamus[salah];
+                    if (item && typeof item === 'object' && item.novelId === sourceId) {
+                        if (targetId === "GLOBAL_OPTION") {
+                            item.global = true;
+                            delete item.novelId;
+                            delete item.novelTitle;
+                            delete item.novelUrl;
+                        } else {
+                            item.global = false;
+                            item.novelId = targetId;
+                            item.novelTitle = targetTitle;
+                            if (targetUrl) item.novelUrl = targetUrl;
+                        }
+                        count++;
+                    }
+                }
+
+                saveKamus(tempKamus);
+                simpanKeAwan(tempKamus);
+                panggilToast(t('merge_group_success', sourceTitle, targetTitle, count), 'success');
+                jalankanPengganti(true);
+                renderTampilan();
+            };
+
+            panel.appendChild(overlay);
+        }
+
+        // Mengubah Nama Novel / Grup Kustom Baru
+        function ubahJudulNovel(novelId, judulLama) {
+            if (!novelId) return;
+            const namaBaru = prompt(t('rename_group_prompt'), judulLama);
+            if (namaBaru === null) return;
+            const namaBersih = namaBaru.trim();
+            if (!namaBersih) return;
+
+            saveCachedNovelTitle(novelId, namaBersih);
+
+            const tempKamus = getKamus();
+            let count = 0;
+            for (const salah in tempKamus) {
+                if (tempKamus[salah].novelId === novelId) {
+                    tempKamus[salah].novelTitle = namaBersih;
+                    count++;
+                }
+            }
+            saveKamus(tempKamus);
+            simpanKeAwan(tempKamus);
+
+            panggilToast(t('rename_group_success', namaBersih, count), 'success');
+            jalankanPengganti(true);
+            renderTampilan();
+        }
+
         function renderCloudGistManager(container, gistDetails) {
             const token = getGitHubToken();
             const gistId = getGistId();
@@ -1594,7 +1878,7 @@
             container.innerHTML = `
                 <div class="flex-col card-box" style="gap: 8px !important; margin-bottom: 12px !important;">
                     <div class="flex-between" style="font-size: 11px !important;">
-                        <span style="color: #9ca3af !important; font-weight: 500 !important;">Connected as:</span>
+                        <span style="color: #9ca3af !important; font-weight: 500 !important;">${t('cloud_connected_as')}</span>
                         <span style="color: #38bdf8 !important; font-weight: bold !important;">🐱 @${ownerName}</span>
                     </div>
                     <div class="flex-between" style="font-size: 11px !important; border-top: 1px dashed #334155 !important; padding-top: 8px !important;">
@@ -1605,23 +1889,23 @@
                         <button class="action-btn copy-gist-id-btn" style="padding: 2px !important; background: none; border: none; cursor: pointer;" title="Copy Gist ID">📋</button>
                     </div>
                     <div class="flex-between" style="font-size: 11px !important;">
-                        <span style="color: #9ca3af !important; flex-shrink: 0 !important;">GitHub Token:</span>
+                        <span style="color: #9ca3af !important; flex-shrink: 0 !important;">${t('auth_github_token_label')}</span>
                         <input type="password" readonly class="txt-copyable-token mono-font" value="${token}" style="background: transparent !important; border: none !important; color: #cbd5e1 !important; font-size: 11px !important; flex: 1 !important; text-align: right !important; outline: none !important; width: 100px !important; margin-right: 6px !important;" />
                         <button class="action-btn toggle-token-view-btn" style="background: none !important; border: none !important; cursor: pointer !important; padding: 2px !important; color: #94a3b8 !important;" title="Show/Hide Token">👁️</button>
                         <button class="action-btn copy-token-btn" style="background: none !important; border: none !important; cursor: pointer !important; padding: 2px !important;" title="Copy Token">📋</button>
                     </div>
                     <div class="flex-between" style="margin-top: 6px !important; border-top: 1px dashed #334155 !important; padding-top: 8px !important;">
                         <button class="form-btn manual-upload-btn btn-pill-primary" style="padding: 5px 14px !important;">
-                            Backup Now
+                            ${t('backup_now')}
                         </button>
                         <button class="form-btn btn-switch-github btn-pill" style="padding: 5px 14px !important; color: #ef4444 !important; border-color: #ef4444 !important;">
-                            Logout
+                            ${t('logout')}
                         </button>
                     </div>
                 </div>
 
                 <div style="font-size: 11px !important; font-weight: bold !important; margin-bottom: 8px !important; color: #94a3b8 !important; border-bottom: 1px solid #334155 !important; padding-bottom: 4px !important; text-transform: uppercase !important; letter-spacing: 0.05em !important;">
-                    🕒 Revision History
+                    🕒 ${t('revision_history')}
                 </div>
 
                 <div class="cloud-baskets-list flex-col" style="gap: 6px !important; max-height: 180px !important; overflow-y: auto !important; padding-right: 4px !important;">
@@ -1630,12 +1914,12 @@
 
             container.querySelector('.copy-gist-id-btn').onclick = () => {
                 navigator.clipboard.writeText(gistId);
-                panggilToast("Gist ID disalin ke clipboard!", "success");
+                panggilToast(t('gist_id_copied'), "success");
             };
 
             container.querySelector('.copy-token-btn').onclick = () => {
                 navigator.clipboard.writeText(token);
-                panggilToast("GitHub Token disalin ke clipboard!", "success");
+                panggilToast(t('token_copied'), "success");
             };
 
             const tInput = container.querySelector('.txt-copyable-token');
@@ -1656,26 +1940,26 @@
                 listContainer.innerHTML = `
                     <div class="cloud-loading-spinner flex-col" style="align-items: center !important; justify-content: center !important; padding: 30px !important; gap: 10px !important;">
                         <span style="font-size: 24px !important; animation: spin 1s linear infinite !important; display: inline-block !important;">⏳</span>
-                        <span style="font-size: 11px !important; color: #94a3b8 !important;">Creating backup...</span>
+                        <span style="font-size: 11px !important; color: #94a3b8 !important;">${t('cloud_manual_backup_starting')}</span>
                     </div>
                 `;
-                panggilToast("Mencadangkan kata ke GitHub...", "info");
+                panggilToast(t('cloud_manual_backup_starting'), "info");
                 await simpanKeAwan(null, null, null, true);
                 
                 const freshDetails = await fetchGistDetails(token, gistId);
                 if (freshDetails) {
-                    panggilToast("Kamus kata berhasil dicadangkan!", "success");
+                    panggilToast(t('cloud_manual_backup_success'), "success");
                     renderCloudGistManager(container, freshDetails);
                 } else {
                     listContainer.innerHTML = originalHTML;
-                    panggilToast("Gagal mengambil riwayat terbaru.", "warn");
+                    panggilToast(t('cloud_manual_backup_fail_history'), "warn");
                 }
             };
 
             container.querySelector('.btn-switch-github').onclick = () => {
                 tampilkanKonfirmasi(
-                    "Logout Akun?",
-                    "Apakah Anda yakin ingin memutuskan koneksi akun GitHub saat ini? Seluruh data kamus lokal Anda tidak akan terhapus.",
+                    t('logout'),
+                    t('logout_confirm'),
                     () => {
                         saveGitHubCredentials("", "");
                         panggilToast(t('toast_account_switched'), 'info');
@@ -1727,8 +2011,8 @@
 
                 item.querySelector('.restore-revision-btn').onclick = () => {
                     tampilkanKonfirmasi(
-                        "Muat Cadangan Kata?",
-                        `Apakah Anda yakin ingin memulihkan cadangan kata pada tanggal ${friendlyName}? Seluruh kata lokal Anda saat ini akan sepenuhnya ditimpa.`,
+                        t('btn_load'),
+                        t('alert_overwrite_confirm'),
                         async () => {
                             panggilToast(t('toast_sync_connecting'), 'info');
                             try {
@@ -1767,8 +2051,8 @@
                 delRevBtn.onclick = (e) => {
                     e.stopPropagation();
                     tampilkanKonfirmasi(
-                        "Hapus Berkas Cadangan?",
-                        `Apakah Anda yakin ingin menghapus cadangan tanggal "${friendlyName}" dari GitHub secara permanen?`,
+                        t('delete_btn'),
+                        t('delete_revision_confirm', friendlyName),
                         async () => {
                             panggilToast("Menghapus berkas cadangan dari GitHub...", "info");
                             try {
@@ -1958,7 +2242,6 @@
                         <input type="checkbox" class="select-all-checkbox" style="cursor: pointer !important; margin: 0 !important;" />
                         <span>${t('select_all')} (<span class="total-count">0</span>)</span>
                     </div>
-                    <!-- ── SOLUSI: Tombol Show/Hide dipindah ke atas daftar kata ── -->
                     <div class="toggle-other-placeholder"></div>
                     <div class="word-list"></div>
                     <div style="display: flex !important; justify-content: flex-end !important; margin-top: 10px !important;">
@@ -1973,18 +2256,18 @@
                 const totalCountSpan = pane.querySelector('.total-count');
 
                 let terpilih = [];
+                let visibleKeys = []; // Solusi: Penampung kata aktif yang tampak di layar [4]
 
                 pane.querySelector('.close-btn-terms').onclick = () => {
                     panel.classList.add('hidden');
                     hilangkanFokusShadow();
                 };
 
-                function perbaruiStatusMassal(filteredKeys) {
-                    if (filteredKeys.length > 0 && terpilih.length === filteredKeys.length) {
-                        selectAllCheckbox.checked = true;
-                    } else {
-                        selectAllCheckbox.checked = false;
-                    }
+                // Solusi: Menguji keterpilihan kata yang murni tampak pada daftar ter-render [4]
+                function perbaruiStatusMassal() {
+                    const isAllSelected = visibleKeys.length > 0 && visibleKeys.every(k => terpilih.includes(k));
+                    selectAllCheckbox.checked = isAllSelected;
+
                     totalCountSpan.textContent = terpilih.length;
                     if (terpilih.length > 0) {
                         bulkDeleteBtn.style.display = 'block';
@@ -2038,11 +2321,18 @@
                     globalKeys.sort();
                     currentLocalKeys.sort();
 
-                    const totalAktif = globalKeys.length + currentLocalKeys.length;
+                    // Solusi: Membangun array penampung visualisasi aktif [4]
+                    visibleKeys = [];
+                    globalKeys.forEach(k => visibleKeys.push(k));
+                    currentLocalKeys.forEach(k => visibleKeys.push(k));
+                    if (showOtherTerms) {
+                        otherLocalKeys.sort();
+                        otherLocalKeys.forEach(k => visibleKeys.push(k));
+                    }
 
-                    if (totalAktif === 0 && (!showOtherTerms || otherLocalKeys.length === 0)) {
+                    if (visibleKeys.length === 0) {
                         listContainer.innerHTML = `<div class="empty-state">${t('empty_state')}</div>`;
-                        perbaruiStatusMassal(keysFiltered);
+                        perbaruiStatusMassal();
                         renderToggleOtherBtn(otherLocalKeys);
                         return;
                     }
@@ -2064,15 +2354,17 @@
                         localHeader.setAttribute('style', 'display: flex !important; justify-content: space-between !important; align-items: center !important; padding: 10px 10px 6px 10px !important; margin-top: 10px !important;');
 
                         const localTitle = currentNovel.title || "Current Novel";
-                        const isActiveLocal = activeNovelId ? (currentNovel.id === activeNovelId) : true;
+                        const isActiveLocal = (activeNovelId === currentNovel.id) || (!activeNovelId);
 
+                        // ── PERBAIKAN: Posisi Gear Menu dipindah ke awal sisi paling kiri ──
                         localHeader.innerHTML = `
                             <div style="display: flex !important; align-items: center !important; gap: 6px !important; width: 100% !important; position: relative !important;">
                                 <div class="group-menu-container">
                                     <button class="group-menu-btn" title="Grup Menu">⚙️</button>
                                     <div class="group-dropdown-menu">
-                                        <button class="group-dropdown-item toggle-active-novel-btn" data-id="${currentNovel.id}">${isActiveLocal ? '❌ Nonaktifkan Grup' : '🟢 Aktifkan Grup'}</button>
-                                        <button class="group-dropdown-item danger delete-novel-group-btn" data-id="${currentNovel.id}" data-title="${localTitle}">🗑 Hapus Grup</button>
+                                        <button class="group-dropdown-item toggle-active-novel-btn" data-id="${currentNovel.id}">${isActiveLocal ? '❌ Nonaktifkan' : '🟢 Aktifkan'}</button>
+                                        <button class="group-dropdown-item merge-novel-group-btn" data-id="${currentNovel.id}" data-title="${localTitle}">🔗 ${t('merge_group')}</button>
+                                        <button class="group-dropdown-item danger delete-novel-group-btn" data-id="${currentNovel.id}" data-title="${localTitle}">🗑 ${t('delete_btn')}</button>
                                     </div>
                                 </div>
                                 <span class="local-novel-title-btn btn-pill" data-id="${currentNovel.id}" title="Klik untuk mengubah nama novel" style="flex: 1 !important; text-align: left !important;">
@@ -2106,18 +2398,20 @@
                         }).forEach(gId => {
                             const group = otherGroups[gId];
                             group.keys.sort();
-                            const isActiveGroup = activeNovelId ? (gId === activeNovelId) : (gId === currentNovel.id);
+                            const isActiveGroup = (activeNovelId === gId) || (!activeNovelId && gId === currentNovel.id);
 
                             const groupHeader = document.createElement('div');
                             groupHeader.setAttribute('style', 'display: flex !important; justify-content: space-between !important; align-items: center !important; padding: 10px 10px 6px 10px !important; margin-top: 10px !important;');
 
+                            // ── PERBAIKAN: Posisi Gear Menu dipindah ke awal sisi paling kiri ──
                             groupHeader.innerHTML = `
                                 <div style="display: flex !important; align-items: center !important; gap: 6px !important; width: 100% !important; position: relative !important;">
                                     <div class="group-menu-container">
                                         <button class="group-menu-btn" title="Grup Menu">⚙️</button>
                                         <div class="group-dropdown-menu">
-                                            <button class="group-dropdown-item toggle-active-novel-btn" data-id="${gId}">${isActiveGroup ? '❌ Nonaktifkan Grup' : '🟢 Aktifkan Grup'}</button>
-                                            <button class="group-dropdown-item danger delete-novel-group-btn" data-id="${gId}" data-title="${group.title}">🗑 Hapus Grup</button>
+                                            <button class="group-dropdown-item toggle-active-novel-btn" data-id="${gId}">${isActiveGroup ? '❌ Nonaktifkan' : '🟢 Aktifkan'}</button>
+                                            <button class="group-dropdown-item merge-novel-group-btn" data-id="${gId}" data-title="${group.title}">🔗 ${t('merge_group')}</button>
+                                            <button class="group-dropdown-item danger delete-novel-group-btn" data-id="${gId}" data-title="${group.title}">🗑 ${t('delete_btn')}</button>
                                         </div>
                                     </div>
                                     <span class="local-novel-title-btn btn-pill" data-id="${gId}" title="Klik untuk mengubah nama novel" style="flex: 1 !important; text-align: left !important;">
@@ -2153,21 +2447,40 @@
                         };
                     });
 
+                    // ── PERBAIKAN FATAL: Menghilangkan delay respons UI & token GLOBAL_ONLY ──
                     pane.querySelectorAll('.toggle-active-novel-btn').forEach(btn => {
                         btn.onclick = (e) => {
                             e.stopPropagation();
                             const nId = btn.getAttribute('data-id');
-                            const isActive = activeNovelId ? (nId === activeNovelId) : (nId === currentNovel.id);
+                            const freshActiveId = getActiveNovelId();
+                            const isActive = (freshActiveId === nId) || (!freshActiveId && nId === currentNovel.id);
 
                             if (isActive) {
-                                setActiveNovelId("");
-                                panggilToast("Grup novel dinonaktifkan (Kembali ke mode alami situs)", 'info');
+                                // Pemuatan diatur ke token "GLOBAL_ONLY" agar semua grup novel dinonaktifkan bersih [2]
+                                setActiveNovelId("GLOBAL_ONLY");
+                                panggilToast(t('toast_group_disabled'), 'info');
                             } else {
                                 setActiveNovelId(nId);
-                                panggilToast(`Grup novel "${getCachedNovelTitle(nId) || nId}" berhasil diaktifkan secara eksklusif`, 'success');
+                                panggilToast(t('toast_group_activated', getCachedNovelTitle(nId) || nId), 'success');
                             }
-                            jalankanPengganti(true);
+                            
+                            // Re-render antarmuka seketika tanpa delay
                             renderTampilan();
+                            
+                            // Defer manipulasi DOM novel yang berat agar utas utama tidak freeze
+                            setTimeout(() => {
+                                jalankanPengganti(true);
+                            }, 50);
+                        };
+                    });
+
+                    pane.querySelectorAll('.merge-novel-group-btn').forEach(btn => {
+                        btn.onclick = (e) => {
+                            e.stopPropagation();
+                            pane.querySelectorAll('.group-dropdown-menu').forEach(menu => menu.classList.remove('show'));
+                            const nId = btn.getAttribute('data-id');
+                            const nTitle = btn.getAttribute('data-title');
+                            tampilkanMergeGroup(nId, nTitle);
                         };
                     });
 
@@ -2177,8 +2490,8 @@
                             const nId = btn.getAttribute('data-id');
                             const nTitle = btn.getAttribute('data-title');
                             tampilkanKonfirmasi(
-                                "Hapus Seluruh Grup Kata?",
-                                `Apakah Anda yakin ingin menghapus seluruh kata/aturan dalam grup novel "${nTitle}"? Aturan ini akan dipindahkan ke Recycle Bin.`,
+                                t('delete_btn'),
+                                t('delete_group_confirm', nTitle),
                                 () => {
                                     const tempKamus = getKamus();
                                     const deletedWords = getDeletedWords();
@@ -2204,7 +2517,7 @@
 
                                     if (getActiveNovelId() === nId) setActiveNovelId("");
                                     simpanKeAwan(tempKamus, null, deletedWords);
-                                    panggilToast(`Berhasil memindahkan seluruh grup "${nTitle}" (${count} kata dihapus) ke Recycle Word`, 'warn');
+                                    panggilToast(t('delete_group_success', nTitle, count), 'warn');
                                     jalankanPengganti(true);
                                     renderTampilan();
                                 }
@@ -2212,7 +2525,7 @@
                         };
                     });
 
-                    perbaruiStatusMassal(keysFiltered);
+                    perbaruiStatusMassal();
                 }
 
                 function renderItem(k, container, isFromOther = false) {
@@ -2222,18 +2535,18 @@
                     item.setAttribute('style', 'border-bottom: 1px solid #334155 !important;' + (isFromOther ? 'opacity: 0.7;' : ''));
 
                     const checked = terpilih.includes(k) ? 'checked' : '';
-                    const toVal = (itemData && typeof itemData === 'object' && typeof itemData.to === 'string') ? itemData.to : (typeof item === 'string' ? item : '');
+                    const toVal = (itemData && typeof itemData === 'object' && typeof itemData.to === 'string') ? itemData.to : (typeof itemData === 'string' ? itemData : '');
 
                     let badgeHTML = '';
                     if (itemData && typeof itemData === 'object') {
                         if (itemData.global) {
-                            badgeHTML = `<span class="term-badge global">🌐 ${t('global_replacer')}</span>`;
+                            badgeHTML = `<span class="term-badge global">${t('global_replacer')}</span>`;
                         } else {
                             const cleanTermDomain = getCachedNovelTitle(itemData.novelId) || itemData.novelTitle || getNovelBaseDomain(itemData.domain) || "Novel";
-                            badgeHTML = `<span class="term-badge local">📖 ${t('local_replacer')} (${cleanTermDomain})</span>`;
+                            badgeHTML = `<span class="term-badge local">${t('local_replacer')} (${cleanTermDomain})</span>`;
                         }
                     } else {
-                        badgeHTML = `<span class="term-badge global">🌐 ${t('global_replacer')}</span>`;
+                        badgeHTML = `<span class="term-badge global">${t('global_replacer')}</span>`;
                     }
 
                     item.innerHTML = `
@@ -2254,13 +2567,7 @@
                         } else {
                             terpilih = terpilih.filter(x => x !== k);
                         }
-                        const searchVal = searchInput.value.toLowerCase().trim();
-                        const keysFiltered = Object.keys(seluruhKamus).filter(k => {
-                            const item = seluruhKamus[k];
-                            const toVal = (item && typeof item === 'object' && typeof item.to === 'string') ? item.to : (typeof item === 'string' ? item : '');
-                            return k.toLowerCase().includes(searchVal) || toVal.toLowerCase().includes(searchVal);
-                        });
-                        perbaruiStatusMassal(keysFiltered);
+                        perbaruiStatusMassal();
                     };
 
                     item.querySelector('.edit-btn-spec').onclick = (e) => {
@@ -2320,28 +2627,23 @@
                     placeholder.appendChild(btn);
                 }
 
+                // Solusi: Mengaktifkan centang massal visual hanya pada item yang tampak [4]
                 selectAllCheckbox.onchange = (e) => {
-                    const searchVal = searchInput.value.toLowerCase().trim();
-                    const keysFiltered = Object.keys(seluruhDeleted).filter(k => {
-                        const item = seluruhDeleted[k];
-                        const toVal = (item && typeof item === 'object' && typeof item.to === 'string') ? item.to : (typeof item === 'string' ? item : '');
-                        return k.toLowerCase().includes(searchVal) || toVal.toLowerCase().includes(searchVal);
-                    });
-
                     if (e.target.checked) {
-                        terpilih = [...keysFiltered];
+                        visibleKeys.forEach(k => {
+                            if (!terpilih.includes(k)) {
+                                terpilih.push(k);
+                            }
+                        });
                     } else {
-                        terpilih = [];
+                        terpilih = terpilih.filter(k => !visibleKeys.includes(k));
                     }
 
                     pane.querySelectorAll('.word-checkbox').forEach(cb => {
-                        const key = cb.getAttribute('data-key');
-                        if (keysFiltered.includes(key)) {
-                            cb.checked = e.target.checked;
-                        }
+                        cb.checked = e.target.checked;
                     });
 
-                    perbaruiStatusMassal(keysFiltered);
+                    perbaruiStatusMassal();
                 };
 
                 bulkDeleteBtn.onclick = () => {
@@ -2380,7 +2682,7 @@
 
                 const salahVal = subjekEdit || '';
                 const itemData = seluruhKamus[salahVal];
-                const benarVal = (itemData && typeof itemData === 'object' && typeof itemData.to === 'string') ? itemData.to : (typeof item === 'string' ? item : '');
+                const benarVal = (itemData && typeof itemData === 'object' && typeof itemData.to === 'string') ? itemData.to : (typeof itemData === 'string' ? itemData : '');
                 
                 let initialSelectedGroup = "";
                 if (subjekEdit && itemData && typeof itemData === 'object') {
@@ -2411,14 +2713,14 @@
                 }
 
                 let selectOptionsHTML = '';
-                selectOptionsHTML += `<option value="GLOBAL_OPTION" ${initialSelectedGroup === 'GLOBAL_OPTION' ? 'selected' : ''}>🌐 Semua Novel (Global Replacer)</option>`;
+                selectOptionsHTML += `<option value="GLOBAL_OPTION" ${initialSelectedGroup === 'GLOBAL_OPTION' ? 'selected' : ''}>🌐 ${t('global_replacer')}</option>`;
 
                 for (const id in localNovelsMap) {
                     const isSelected = (initialSelectedGroup === id);
                     const labelSuffix = (id === currentNovel.id) ? ' (Active)' : '';
                     selectOptionsHTML += `<option value="${id}" ${isSelected ? 'selected' : ''}>📖 ${localNovelsMap[id]}${labelSuffix}</option>`;
                 }
-                selectOptionsHTML += `<option value="NEW_CUSTOM" ${initialSelectedGroup === 'NEW_CUSTOM' ? 'selected' : ''}>➕ Buat Grup Novel / Kustom Baru...</option>`;
+                selectOptionsHTML += `<option value="NEW_CUSTOM" ${initialSelectedGroup === 'NEW_CUSTOM' ? 'selected' : ''}>${t('select_custom_group_placeholder')}</option>`;
 
                 const chkActiveState = (subjekEdit) ? (activeNovelId === initialSelectedGroup) : lastCheckboxState;
 
@@ -2437,7 +2739,7 @@
                             <label class="case-sensitive-toggle">
                                 <input type="checkbox" class="chk-case-sensitive" style="display:none;" />
                                 <span class="toggle-slider"></span>
-                                <span>Case sensitive</span>
+                                <span>${t('case_sensitive')}</span>
                             </label>
                         </div>
                     </div>
@@ -2450,15 +2752,15 @@
                     </div>
 
                     <div class="editor-section" style="margin-top: 16px; display: flex; flex-direction: column; gap: 6px;">
-                        <span class="editor-label">${t('mode_label')} / Target Kategori:</span>
+                        <span class="editor-label">${t('target_category')}:</span>
                         <select class="form-input sel-novel-group" style="width: 100% !important; background: #1a1d24 !important; border: 1px solid #272a34 !important; border-radius: 10px !important; color: white !important; cursor: pointer !important;">
                             ${selectOptionsHTML}
                         </select>
-                        <input type="text" class="form-input txt-custom-novel-title" placeholder="Masukkan nama novel baru..." style="display: ${isNewCustom ? 'block' : 'none'}; margin-top: 4px; border-color: #2563eb !important; border-radius: 10px !important;" />
+                        <input type="text" class="form-input txt-custom-novel-title" placeholder="${t('custom_novel_input_placeholder')}" style="display: ${isNewCustom ? 'block' : 'none'}; margin-top: 4px; border-color: #2563eb !important; border-radius: 10px !important;" />
                         <div class="chk-active-group-container" style="display: ${isGlobal ? 'none' : 'flex'} !important; align-items: center !important; gap: 6px !important; margin-top: 6px !important; user-select: none !important;">
                             <label style="display: inline-flex !important; align-items: center !important; gap: 6px !important; cursor: pointer !important; font-size: 11px !important; color: #9ca3af !important;">
                                 <input type="checkbox" class="chk-make-group-active" style="cursor: pointer !important;" ${chkActiveState ? 'checked' : ''} />
-                                <span>Jadikan Grup Ini Aktif (Nonaktifkan Grup Lain)</span>
+                                <span>${t('make_group_active')}</span>
                             </label>
                         </div>
                         <div class="desc-all-novels" style="font-size: 9px; color: #9ca3af; margin-top: 4px;">
@@ -2526,8 +2828,8 @@
                 if (deleteBtnEditor) {
                     deleteBtnEditor.onclick = () => {
                         tampilkanKonfirmasi(
-                            "Hapus Aturan?",
-                            `Aturan kata "${subjekEdit}" akan dipindahkan ke Recycle Bin.`,
+                            t('delete_btn'),
+                            t('delete_group_confirm', subjekEdit),
                             () => {
                                 const tempKamus = getKamus(), deletedWords = getDeletedWords();
                                 if (subjekEdit) {
@@ -2564,7 +2866,7 @@
                     if (!isGlobalChecked) {
                         if (selectedVal === "NEW_CUSTOM") {
                             const customTitle = txtCustomNovelTitle.value.trim();
-                            if (!customTitle) { alert("Silakan masukkan nama novel/grup baru!"); return; }
+                            if (!customTitle) { alert(t('warn_no_custom_name')); return; }
                             savedNovelId = "custom_novel_" + Math.random().toString(36).substring(2, 11);
                             savedNovelTitle = customTitle;
                             savedNovelUrl = currentNovel.url;
@@ -2607,15 +2909,18 @@
 
                     subjekEdit = null;
                     tabAktif = 'daftar';
-                    jalankanPengganti(true);
+                    
                     renderTampilan();
+                    setTimeout(() => {
+                        jalankanPengganti(true);
+                    }, 50);
                 };
 
                 if (!subjekEdit) {
                     const saranContainer = document.createElement('div');
                     saranContainer.style.marginTop = '16px';
                     saranContainer.innerHTML = `
-                        <span class="editor-label" style="font-size: 10px;">${t('suggested_title')}</span>
+                        <span class="editor-label" style="font-size: 10px;">${t('suggested_wrong')}</span>
                         <div class="suggestion-chips">
                             <button class="suggestion-chip" data-wrong="silahkan" data-right="silakan">silahkan</button>
                             <button class="suggestion-chip" data-wrong="antri" data-right="antre">antri</button>
@@ -2653,7 +2958,6 @@
                         <input type="checkbox" class="select-all-checkbox" style="cursor: pointer !important; margin: 0 !important;" />
                         <span>${t('select_all')} (<span class="total-count">0</span>)</span>
                     </div>
-                    <!-- ── SOLUSI: Tombol Show/Hide dipindah ke atas daftar kata di Recycle Bin ── -->
                     <div class="toggle-other-placeholder"></div>
                     <div class="word-list"></div>
                     <div style="display: flex !important; justify-content: flex-end !important; margin-top: 10px !important;">
@@ -2669,18 +2973,18 @@
                 const totalCountSpan = pane.querySelector('.total-count');
 
                 let terpilih = [];
+                let visibleKeys = []; // Solusi: Penampung kata sampah aktif yang tampak di layar [4]
 
                 pane.querySelector('.close-btn-recycle').onclick = () => {
                     panel.classList.add('hidden');
                     hilangkanFokusShadow();
                 };
 
-                function perbaruiStatusMassal(filteredKeys) {
-                    if (filteredKeys.length > 0 && terpilih.length === filteredKeys.length) {
-                        selectAllCheckbox.checked = true;
-                    } else {
-                        selectAllCheckbox.checked = false;
-                    }
+                // Solusi: Menguji keterpilihan kata yang murni tampak pada daftar ter-render [4]
+                function perbaruiStatusMassal() {
+                    const isAllSelected = visibleKeys.length > 0 && visibleKeys.every(k => terpilih.includes(k));
+                    selectAllCheckbox.checked = isAllSelected;
+
                     totalCountSpan.textContent = terpilih.length;
                     if (terpilih.length > 0) {
                         bulkUndoBtn.style.display = 'block';
@@ -2736,9 +3040,18 @@
 
                     globalKeys.sort(); currentLocalKeys.sort();
 
-                    if (globalKeys.length === 0 && currentLocalKeys.length === 0 && (!showOtherTerms || otherLocalKeys.length === 0)) {
+                    // Solusi: Membangun array penampung visualisasi aktif [4]
+                    visibleKeys = [];
+                    globalKeys.forEach(k => visibleKeys.push(k));
+                    currentLocalKeys.forEach(k => visibleKeys.push(k));
+                    if (showOtherTerms) {
+                        otherLocalKeys.sort();
+                        otherLocalKeys.forEach(k => visibleKeys.push(k));
+                    }
+
+                    if (visibleKeys.length === 0) {
                         listContainer.innerHTML = `<div class="empty-state">${t('empty_state')}</div>`;
-                        perbaruiStatusMassal(keysFiltered);
+                        perbaruiStatusMassal();
                         renderToggleOtherBtn(otherLocalKeys);
                         return;
                     }
@@ -2788,7 +3101,7 @@
                         });
                     }
 
-                    perbaruiStatusMassal(keysFiltered);
+                    perbaruiStatusMassal();
                 }
 
                 function renderItem(k, container, isFromOther = false) {
@@ -2830,12 +3143,7 @@
                         } else {
                             try { terpilih = terpilih.filter(x => x !== k); } catch(err) {}
                         }
-                        const searchVal = searchInput.value.toLowerCase().trim();
-                        const keysFiltered = Object.keys(seluruhDeleted).filter(k => {
-                            const item = seluruhDeleted[k];
-                            return k.toLowerCase().includes(searchVal) || (item && typeof item === 'object' && typeof item.to === 'string' && item.to.toLowerCase().includes(searchVal));
-                        });
-                        perbaruiStatusMassal(keysFiltered);
+                        perbaruiStatusMassal();
                     };
 
                     const btnUndo = item.querySelector('.undo-btn-spec');
@@ -2911,28 +3219,21 @@
                     placeholder.appendChild(btn);
                 }
 
+                // Solusi: Mengaktifkan centang massal visual hanya pada item yang tampak [4]
                 selectAllCheckbox.onchange = (e) => {
-                    const searchVal = searchInput.value.toLowerCase().trim();
-                    const keysFiltered = Object.keys(seluruhDeleted).filter(k => {
-                        const item = seluruhDeleted[k];
-                        const toVal = (item && typeof item === 'object' && typeof item.to === 'string') ? item.to : (typeof item === 'string' ? item : '');
-                        return k.toLowerCase().includes(searchVal) || toVal.toLowerCase().includes(searchVal);
-                    });
-
                     if (e.target.checked) {
-                        terpilih = [...keysFiltered];
+                        visibleKeys.forEach(k => {
+                            if (!terpilih.includes(k)) terpilih.push(k);
+                        });
                     } else {
-                        terpilih = [];
+                        terpilih = terpilih.filter(k => !visibleKeys.includes(k));
                     }
 
                     pane.querySelectorAll('.word-checkbox').forEach(cb => {
-                        const key = cb.getAttribute('data-key');
-                        if (keysFiltered.includes(key)) {
-                            cb.checked = e.target.checked;
-                        }
+                        cb.checked = e.target.checked;
                     });
 
-                    perbaruiStatusMassal(keysFiltered);
+                    perbaruiStatusMassal();
                 };
 
                 bulkUndoBtn.onclick = () => {
@@ -3150,15 +3451,15 @@
 
                     subContent.querySelector('.chk-highlight').onchange = (e) => {
                         saveHighlightAktif(e.target.checked);
-                        panggilToast(e.target.checked ? 'Highlight enabled' : 'Highlight disabled', 'info');
+                        panggilToast(e.target.checked ? t('highlight_enabled') : t('highlight_disabled'), 'info');
                         jalankanPengganti(true);
                     };
 
                     const btnReset = subContent.querySelector('.reset-config-btn');
                     btnReset.onclick = () => {
                         tampilkanKonfirmasi(
-                            "⚠️ Reset Data Total?",
-                            "Tindakan ini akan mengembalikan setelan skrip ke kondisi awal serta menghapus seluruh data kamus kustom, log sampah, dan memutus integrasi cloud GitHub Anda.",
+                            t('restore_defaults'),
+                            t('reset_confirm_desc'),
                             () => {
                                 const defaultKamus = {
                                     "silahkan": { to: "silakan", global: true, domain: "wikipedia.org" },
@@ -3196,26 +3497,26 @@
                                 </div>
                                 <div class="flex-col" style="margin: 4px 0 8px 0; gap: 6px !important;">
                                     <a href="https://github.com/settings/tokens/new?scopes=gist&description=AWR-Replacer-Sync-Token" target="_blank" style="color: #60a5fa !important; font-size: 11px !important; text-decoration: underline !important; font-weight: bold !important;">
-                                        👉 Get GitHub Access Token Here (Classic Token)
+                                        ${t('auth_token_classic_link')}
                                     </a>
                                     <a href="https://github.com/settings/tokens" target="_blank" style="color: #34d399 !important; font-size: 11px !important; text-decoration: underline !important; font-weight: bold !important;">
-                                        ⚙️ Manage Existing Tokens (Kelola Token Lama Anda)
+                                        ${t('auth_token_manage_link')}
                                     </a>
                                 </div>
                                 <div class="editor-section">
-                                    <span class="editor-label">GitHub Token:</span>
+                                    <span class="editor-label">${t('auth_github_token_label')}</span>
                                     <div class="input-wrapper-box">
                                         <input type="password" class="form-input txt-github-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="border: none !important; background: transparent !important; outline: none !important; width: 100% !important; border-radius: 10px !important; padding-right: 35px !important; box-sizing: border-box !important;" />
                                         <button class="toggle-token-visibility-btn" style="position: absolute !important; right: 8px !important; background: none !important; border: none !important; color: #9ca3af !important; cursor: pointer !important; font-size: 14px !important; padding: 0 !important; display: flex !important; align-items: center !important; outline: none !important;">👁️</button>
                                     </div>
                                 </div>
                                 <div class="editor-section" style="margin-top: 8px;">
-                                    <span class="editor-label">Gist ID (Optional):</span>
+                                    <span class="editor-label">${t('auth_gist_id_label')}</span>
                                     <input type="text" class="form-input txt-gist-id" placeholder="Biarkan kosong jika ingin membuat baru" style="border-radius: 10px !important;" value="${gistId}" />
                                 </div>
                                 <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
                                     <button class="form-btn btn-connect-github-action" style="background: #10b981 !important; border-radius: 20px !important; color: white !important;">
-                                        Connect GitHub
+                                        ${t('auth_connect_btn')}
                                     </button>
                                 </div>
                             </div>
@@ -3240,13 +3541,13 @@
                             const tokenVal = tokenInput.value.trim();
                             if (tokenVal.length >= 40) {
                                 tokenCheckTimeout = setTimeout(async () => {
-                                    panggilToast("Memindai kamus Gist lama Anda...", "info");
+                                    panggilToast(t('gist_scan_toast'), "info");
                                     const foundId = await findExistingGist(tokenVal);
                                     if (foundId) {
                                         gistInput.value = foundId;
-                                        panggilToast("Gist lama Anda ditemukan dan diisi secara otomatis!", "success");
+                                        panggilToast(t('gist_scan_found'), "success");
                                     } else {
-                                        panggilToast("Tidak ada Gist lama terdeteksi. Silakan biarkan kosong jika ingin membuat baru.", "info");
+                                        panggilToast(t('gist_scan_not_found'), "info");
                                     }
                                 }, 800);
                             }
@@ -3265,15 +3566,15 @@
                             }
 
                             btn.disabled = true;
-                            btn.textContent = "⌛ Menghubungkan...";
+                            btn.textContent = t('auth_connecting_btn');
                             btn.style.opacity = "0.7";
-                            panggilToast("Menghubungkan & menyinkronkan ke GitHub Gist...", "info");
+                            panggilToast(t('toast_sync_connecting'), "info");
 
                             if (!inputGistId) {
                                 const discoveredGistId = await findExistingGist(inputToken);
                                 if (discoveredGistId) {
                                     inputGistId = discoveredGistId;
-                                    panggilToast("Menemukan Gist lama Anda secara otomatis!", "success");
+                                    panggilToast(t('gist_scan_found'), "success");
                                 }
                             } else {
                                 inputGistId = extractGistId(inputGistId);
@@ -3284,7 +3585,7 @@
                                 if (inputGistId) {
                                     details = await fetchGistDetails(inputToken, inputGistId);
                                     if (!details) {
-                                        alert("Gist ID tidak valid atau tidak dapat diakses!\n\nKemungkinan Penyebab:\n1. Anda menempelkan token di kolom Gist ID secara tidak sengaja.\n2. Gist ID/URL yang dimasukkan salah.\n3. Token GitHub Anda tidak memiliki izin 'gist'.\n4. Gist tersebut telah dihapus dari server GitHub.");
+                                        alert(t('gist_err_invalid'));
                                         btn.disabled = false;
                                         btn.textContent = originalText;
                                         btn.style.opacity = "1";
@@ -3313,13 +3614,13 @@
                                 }
 
                                 saveGitHubCredentials(inputToken, inputGistId);
-                                panggilToast("Berhasil terhubung ke GitHub Gist!", "success");
+                                panggilToast(t('toast_github_connected'), "success");
                                 
                                 if (subContent && shadow.contains(subContent)) {
                                     renderCloudGistManager(subContent, details);
                                 }
                             } catch (err) {
-                                alert("Terjadi kesalahan koneksi saat memverifikasi akun.");
+                                alert(t('auth_conn_fail_reason'));
                                 btn.disabled = false;
                                 btn.textContent = originalText;
                                 btn.style.opacity = "1";
@@ -3341,7 +3642,7 @@
                             console.error(err);
                             subContent.innerHTML = `
                                 <div style="color: #ef4444 !important; font-size: 11px !important; text-align: center !important; padding: 20px !important; line-height: 1.4 !important; display: flex !important; flex-direction: column !important; gap: 10px !important;">
-                                    ⚠️ Gagal memuat data cloud GitHub.<br>Silakan periksa koneksi internet atau token Anda.
+                                    ${t('auth_cloud_err_msg')}
                                     <div><button class="form-btn btn-force-switch btn-pill-danger" style="padding: 5px 14px !important;">Logout</button></div>
                                 </div>
                             `;

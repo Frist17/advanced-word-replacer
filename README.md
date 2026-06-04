@@ -21,55 +21,187 @@ Alat ini sangat membantu pembaca novel terjemahan mesin (MTL/Machine Translation
 
 ## 🌟 Fitur Utama (Key Features)
 
-* **Antarmuka Terisolasi (Shadow DOM Floating UI)**: UI melayang yang tangguh dan tidak akan bentrok dengan desain visual (*CSS*) atau skrip bawaan dari situs host [4].
-* **Pencocokan Kata Cerdas**:
-  * Mengabaikan variasi vokal romaji secara cerdas (misal: otomatis menyelaraskan `a`, `aa`, atau `ā`).
-  * Mengabaikan karakter tak terlihat (*zero-width space*) yang sering menyelinap di antara huruf teks web novel.
-* **Manajemen Kategori Terstruktur**: Memisahkan aturan kata menjadi kategori **Global** (berlaku di semua situs) dan **Lokal/Per Judul Novel** (hanya aktif pada novel tertentu agar tidak mengacaukan terminologi novel lain) [2].
-* **Aman Dari Masalah Hardware (Double-Click Protection)**: Seluruh aksi sensitif seperti menghapus, mengembalikan (*undo*), atau memodifikasi data dilengkapi dengan sistem dialog pop-up konfirmasi kustom untuk mencegah eksekusi tidak sengaja akibat *mouse* yang bermasalah [5].
-* **Cloud Backup & Riwayat Revisi (GitHub Gist)**: Menghubungkan penyimpanan ke Gist pribadi Anda untuk mencadangkan data secara aman [1]. Pengguna dapat mengunduh kembali titik pemulihan (*snapshot*) tertentu berdasarkan tanggal dan jam riwayat cadangan [1].
-* **Keranjang Sampah (Recycle Word)**: Aturan yang dihapus akan ditampung sementara di tab ini sebelum Anda memutuskan untuk menghapusnya secara permanen atau memulihkannya kembali.
-* **Situs Manajer (Filter)**: Mendukung mode *Whitelist* (skrip hanya berjalan pada situs yang didaftarkan) dan *Blacklist* (skrip berjalan di semua situs kecuali situs yang diblokir).
+1. Sistem Penjaga Kesehatan UI & Watchdog Mandiri (UI Health Monitor & Watchdog)
 
+Beberapa situs web novel memiliki skrip bawaan agresif yang sering menghapus elemen luar atau menyebabkan antarmuka pengguna (panel UI) macet. Skrip ini kini dilengkapi dengan monitor kesehatan berkala (setiap 2,5 detik) yang bekerja secara mandiri untuk:
+
+    Mendeteksi jika panel terlepas dari halaman atau mendadak kosong, lalu memulihkannya kembali secara instan tanpa perlu menutup panel atau menyegarkan halaman.
+
+    Menyediakan Function Watchdog yang otomatis mereset status penggantian jika mendeteksi adanya kemacetan sistem akibat proses manipulasi teks yang terlalu berat.
+
+2. Pencocokan Lintas Elemen & Paragraf (Cross-Node & Cross-Block Replacement)
+
+Teks terjemahan di halaman web sering kali terpecah oleh elemen format HTML (seperti teks tebal <b>, miring <i>, atau penanda glosari bawaan) [4]. Fitur baru ini mampu:
+
+    Mendeteksi dan mengganti frasa secara utuh meskipun kata-kata tersebut terpisah oleh tag HTML inline yang berbeda [1, 2].
+
+    Menghubungkan akhir baris paragraf pertama dengan awal baris paragraf berikutnya (lintas paragraf) untuk menangani kalimat yang terputus karena pergantian baris [1, 2].
+
+    Melindungi penanda glosari bawaan situs agar teks di sekitarnya tetap terganti tanpa merusak fungsi tooltip atau klik asli dari situs tersebut.
+
+3. Hash Scanner & Penggantian Berbasis Kemunculan (Positional Hash Overrides)
+
+Fitur ini sangat berguna untuk situs web novel yang menggunakan sistem proteksi atau enkripsi nama karakter (seperti struktur span[data-hash] di wtr-lab atau WebNovel).
+
+    Tab Hash Scanner: Menyediakan panel interaktif khusus untuk memindai seluruh kode hash unik di halaman, menampilkan statistik jumlah kemunculannya, mendeteksi konflik konteks, serta memberikan catatan kustom.
+
+    Target Per-Kemunculan: Jika ada dua karakter berbeda yang kebetulan memiliki data-hash yang sama, Anda dapat memberikan nama pengganti yang berbeda berdasarkan urutan kemunculannya (misalnya, kemunculan ke-1 dinamai Tokoh A, sedangkan kemunculan ke-2 dinamai Tokoh B).
+
+4. Mode Penggantian Teks Persis Bebas Regex (Exact-Text Replacements)
+
+Menyusun ekspresi reguler (regex) untuk kalimat panjang yang penuh dengan tanda baca seperti koma, titik, atau tanda tanya terkadang cukup rumit.
+
+    Cukup dengan menambahkan awalan exact: pada kolom input (misal: exact:Bab 1, Bagian 2), skrip akan mengabaikan mesin regex dan beralih ke pencocokan literal secara persis.
+
+    Fitur ini juga secara otomatis merapikan spasi ganda atau karakter tak terlihat di antara kata agar proses pencocokan tetap berjalan dengan akurat.
+
+5. Fitur Diagnosa Kata & Perbaikan ID Novel (Word Diagnosis & ID Auto-Fixer)
+
+Jika Anda menemukan aturan kata yang tidak berfungsi sebagaimana mestinya, skrip ini menyediakan alat pelacak masalah yang transparan:
+
+    Analisis Layer: Menampilkan rincian kecocokan aturan kata (mulai dari layer kecocokan judul novel, kesamaan URL, hingga deteksi domain aktif).
+
+    ID Auto-Fixer: Jika diagnosa mendeteksi adanya ID novel yang usang atau tidak cocok karena perbedaan struktur situs, Anda dapat menekan tombol "Perbaiki Semua" untuk memetakan kembali aturan-aturan tersebut ke ID novel yang aktif saat ini secara otomatis.
+
+6. Pencegah Loop & Teks Berkedip (Anti-Flicker Rate Limiter)
+
+Pada situs web berbasis Single Page Application (SPA) yang memperbarui konten halaman secara dinamis menggunakan JavaScript, skrip pengganti teks rentan terjebak dalam lingkaran pemrosesan tanpa akhir (infinite mutation loops).
+
+    Skrip ini menerapkan pembatas frekuensi mutasi pada tingkat elemen teks individual. Jika sebuah elemen terdeteksi mengalami perubahan berlebih dalam waktu singkat, skrip akan mengunci sementara proses penggantian pada elemen tersebut untuk menghemat konsumsi daya CPU dan mencegah teks berkedip (flickering).
+
+7. Ekspor & Impor Aturan Parsial per Judul Novel
+
+Selain fitur pencadangan cloud global, Anda kini dapat mengekspor aturan penggantian khusus untuk satu judul novel yang sedang Anda baca ke dalam berkas JSON lokal. Hal ini memudahkan Anda untuk membagikan daftar istilah atau nama karakter novel favorit Anda kepada pembaca lain tanpa harus membagikan seluruh isi kamus pribadi Anda.
+8. Pembersihan Otomatis Recycle Bin & Vault Kredensial
+
+    Auto-Clean: Anda dapat mengatur jangka waktu otomatis (seperti 7 hari, 30 hari, atau 90 hari) agar skrip menghapus kata-kata di keranjang sampah secara permanen guna menjaga performa database lokal tetap ringan.
+
+    Credentials Vault: Anda dapat mengunduh berkas kredensial login (awr_credentials.js) secara lokal atau mencadangkannya di cloud untuk mempermudah proses pemulihan akun sinkronisasi Gist di perangkat lain tanpa perlu menyalin kode token secara manual.
 ---
 
 ## 📘 Panduan Penggunaan Detail (Usage Guide)
 
-### 1. Cara Mengakses Menu AWR Tools
-* **Tombol Launcher**: Klik tombol melayang bertuliskan **"AWR Tools"** di pojok kiri bawah layar Anda untuk membuka panel.
-* **Klik Latar Belakang**: Klik dua kali pada area latar belakang halaman web yang kosong (bukan teks atau gambar) untuk menampilkan atau menyembunyikan panel secara cepat.
+Berikut adalah panduan langkah demi langkah mengenai cara menggunakan alat
+(tools) Advanced Word Replacer langsung dari antarmuka melayang (Floating UI)
+yang muncul di halaman web Anda:
 
-### 2. Tab Editor (Menambah & Memperbarui Kata)
-* **Original Text**: Ketik kata salah atau teks asli yang ingin diganti (bersifat tidak sensitif huruf besar/kecil secara bawaan).
-* **Replacement Text**: Masukkan kata pengganti yang benar.
-* **Target Kategori (Dropdown)**:
-  * Pilih `🌐 Semua Novel` untuk perbaikan umum tata bahasa.
-  * Pilih `📖 [Nama Novel] (Active)` untuk aturan khusus novel tersebut.
-  * Pilih `Buat Grup Novel baru` untuk membuat kategori kustom baru.
-* Klik **Save** (atau **Update** jika sedang mengedit kata lama).
+1. Persiapan Awal
 
-### 3. Tab Your Terms (Kelola Aturan Aktif)
-* Gunakan kolom pencarian di bagian atas untuk menyaring daftar kata.
-* Centang kotak pilih jika ingin melakukan penghapusan massal melalui tombol merah di atas.
-* **Menu Gear (⚙️) Sisi Kiri**: Diposisikan di sebelah kiri nama grup novel untuk mencegah menu aksi terpotong dinding panel. Klik menu ini untuk:
-  * Mengaktifkan/menonaktifkan grup lokal pada novel saat ini.
-  * Menghapus grup novel beserta seluruh aturan di dalamnya ke Recycle Bin.
+  - Pastikan ekstensi Tampermonkey sudah terpasang di browser Anda dan skrip ini
+    dalam kondisi aktif.
+  - Saat Anda membuka salah satu situs web yang diizinkan (misalnya situs web
+    novel populer seperti wtr-lab.com, webnovel.com, dll.), Anda akan melihat
+    tombol melayang kecil bertuliskan "AWR Tools" di pojok kiri bawah layar
+    Anda.
+  - Klik tombol "AWR Tools" tersebut untuk membuka panel kontrol utama skrip.
 
-### 4. Tab Recycle Word (Keranjang Sampah)
-* Aturan kata yang baru dihapus akan mengantre di sini.
-* Gunakan tombol **UD** (*Undo*) untuk memulihkan aturan kata kembali ke kamus aktif.
-* Gunakan tombol **Sampah** di sisi kanan untuk menghapus aturan tersebut secara permanen.
+2. Menambahkan Aturan Penggantian Kata (Tab Editor - Ikon Pena ✏️)
 
-### 5. Tab Kelola (Settings & Cloud Manager)
-Gunakan pilihan sub-tab di kanan atas menu Kelola untuk mengakses:
-* **Filter (Situs Manajer)**: Tambahkan domain situs novel (contoh: `wtr-lab.com`) ke dalam daftar Whitelist atau Blacklist.
-* **Config (Setelan)**:
-  * *Blue Highlight*: Jika diaktifkan, kata yang berhasil diganti akan dicetak tebal berwarna biru. Jika kursor diarahkan ke sana, akan muncul informasi kata asli serta tombol jalan pintas untuk langsung mengedit aturan tersebut.
-  * *Reset Data*: Mengembalikan skrip ke kondisi awal pabrik.
-* **Cloud (GitHub Gist)**:
-  * Buat akun GitHub, generate *Classic Personal Access Token* dengan izin `gist` [1].
-  * Hubungkan token dan Gist ID Anda [1].
-  * Manfaatkan fitur **Backup Now** untuk mengunggah cadangan, atau muat versi pemulihan lama pada daftar **Revision History** di bawahnya [1].
+Tab ini digunakan untuk mendaftarkan kata-kata baru yang ingin Anda ubah
+tampilannya pada teks novel:
+
+1.  Kolom Teks Asli (Original Text): Masukkan kata yang salah diterjemahkan atau
+    ingin diganti.
+      - Variasi: Klik tombol + Variation untuk menggunakan pemisah garis tegak
+        (|). Contoh: jika Anda mengisi Fugaku|fuguaku, maka kedua variasi
+        penulisan tersebut akan diganti.
+      - Wildcard: Klik + Wild Char untuk menyisipkan tanda bintang (*) untuk
+        pencocokan karakter acak di tengah kata.
+      - Exact: Klik + Exact untuk menyisipkan awalan exact:. Gunakan mode ini
+        jika Anda ingin mengganti kalimat panjang yang mengandung banyak tanda
+        baca secara harfiah tanpa memicu aturan pemrosesan regex biasa.
+      - Hash: Klik + Hash Rule atau ketik awalan hash: secara manual untuk
+        menargetkan elemen teks spesifik yang memiliki data enkripsi khusus
+        (biasanya digunakan untuk situs web tertentu).
+2.  Kolom Teks Pengganti (Replacement Text): Masukkan kata baru yang benar.
+3.  Target Kategori (Target Category): Tentukan ruang lingkup berlakunya aturan
+    kata tersebut:
+      - Global Replacer (Semua Novel): Aturan kata akan aktif di seluruh situs
+        web yang Anda buka.
+      - Local Replacer (Hanya Novel Ini): Aturan kata hanya akan bekerja pada
+        novel yang sedang aktif dibaca sekarang, sehingga tidak mengacaukan
+        terminologi saat Anda membaca judul novel lain [2].
+4.  Live Rule Sandbox: Di bagian bawah, Anda dapat mencoba mengetikkan teks
+    sembarang untuk menguji apakah aturan kata Anda sudah bekerja dengan tepat
+    sebelum mengeklik tombol Simpan.
+
+  - Tip Cepat: Anda juga bisa menyorot teks yang salah di halaman web, lalu
+    mengeklik tombol editor pada tooltip melayang yang muncul untuk mengisi
+    kolom teks asli secara otomatis.
+
+3. Mengelola Daftar Istilah (Tab Your Terms - Ikon Buku 📖)
+
+Tab ini menampilkan semua daftar kata yang telah Anda simpan sebelumnya:
+
+  - Fitur Pencarian: Gunakan kolom pencarian di bagian atas untuk menyaring kata
+    lama atau kata baru dengan cepat.
+  - Manajemen Grup Novel: Di setiap sub-judul novel, terdapat tombol ikon gerigi
+    (⚙️) yang menyediakan menu untuk:
+      - Mengaktifkan atau menonaktifkan grup novel tertentu secara eksklusif.
+      - Mengubah nama grup novel tersebut.
+      - Menggabungkan seluruh istilah dari grup tersebut ke grup lain atau
+        menjadikannya global.
+      - Memindahkan seluruh isi grup tersebut ke Recycle Bin.
+  - Diagnosa Kata (🔍): Klik ikon kaca pembesar di samping kata apa saja untuk
+    menganalisis secara mendalam mengapa kata tersebut aktif atau tidak aktif di
+    halaman yang sedang Anda buka. Tombol "Perbaiki Semua" di dalam panel
+    diagnosa juga dapat memetakan ulang ID novel yang usang secara otomatis.
+
+4. Memindai Kata Terenkripsi (Tab Hash Scanner - Ikon Kaca Pembesar 🔍)
+
+Tab ini dirancang khusus untuk menangani situs-situs terjemahan mesin yang
+mengunci nama karakter menggunakan elemen span berkode unik (data-hash):
+
+1.  Buka tab Hash Scanner saat Anda membaca di halaman novel. Skrip akan
+    memindai dan menampilkan seluruh daftar kata unik yang terdeteksi di halaman
+    tersebut.
+2.  Anda dapat mencentang beberapa kata sekaligus untuk memberikan teks
+    pengganti secara massal lewat kolom input bulk di bagian atas.
+3.  Jika ada karakter dengan kode hash yang sama tetapi merujuk pada tokoh
+    berbeda, klik tombol Per Kemunculan (⚙️) untuk menetapkan nama yang
+    berbeda-beda berdasarkan urutan penulisan mereka di halaman tersebut.
+
+  - Tip Alternatif: Anda juga dapat melakukan klik kanan pada kata unik yang
+    ingin Anda ganti di dalam teks novel untuk membuka form pengisian aturan
+    hash secara instan.
+
+5. Keranjang Sampah (Tab Recycle Word - Ikon Daur Ulang ♻️)
+
+Aturan kata yang Anda hapus tidak akan langsung hilang secara permanen,
+melainkan dipindahkan terlebih dahulu ke tab ini:
+
+  - Anda dapat memilih beberapa kata untuk dipulihkan (Undo) kembali ke kamus
+    aktif Anda, atau menghapusnya secara permanen.
+  - Jika Anda mengaktifkan pengaturan pembersihan otomatis di tab konfigurasi,
+    sistem akan mengosongkan folder sampah ini sesuai dengan batas hari yang
+    telah ditentukan.
+
+6. Pengaturan & Sinkronisasi Cloud (Tab Settings - Ikon Gigi Roda ⚙️)
+
+Tab ini dibagi menjadi beberapa sub-menu penting:
+
+  - Situs Manajer (Filter): Mengatur apakah skrip berjalan menggunakan sistem
+    Whitelist (hanya berjalan pada situs tertentu yang Anda daftarkan) atau
+    Blacklist (berjalan di semua situs kecuali yang Anda daftarkan). Anda juga
+    dapat mengeklik tombol preset untuk langsung mendaftarkan 20 situs novel
+    populer secara otomatis.
+  - Config (Pengaturan Skrip): Mengaktifkan/menonaktifkan sorotan warna biru
+    tebal pada kata yang berhasil diganti, mengatur masa pembersihan otomatis
+    Recycle Bin, serta memilih mode pembaruan skrip.
+  - Data (Ekspor/Impor): Digunakan untuk mengunduh aturan kata khusus untuk satu
+    novel aktif ke dalam file JSON di komputer Anda, atau mengimpor data istilah
+    dari pembaca lain ke dalam novel Anda.
+  - Cloud Manager (Cadangan Cloud):
+    1.  Masukkan kode GitHub Token pribadi Anda (yang memiliki hak akses/izin
+        Gist).
+    2.  Klik Connect GitHub. Sistem akan otomatis mencari atau membuat berkas
+        Private Gist baru di akun GitHub Anda secara aman dan gratis.
+    3.  Setelah terhubung, klik Backup Now untuk mengunggah draf kamus Anda
+        sebagai titik pemulihan.
+    4.  Anda dapat melihat riwayat pencadangan berdasarkan tanggal di bagian
+        bawah, serta memilih tombol Muat untuk mengembalikan cadangan lama atau
+        Gabung untuk menyatukan data cadangan ke perangkat baru.
+
 
 ---
 
